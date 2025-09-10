@@ -1,8 +1,7 @@
 import balance from './balance.js';
 import fetch from 'node-fetch';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-
-
+import { COINS, COIN_DECIMALS } from '../coin_constants.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -10,13 +9,6 @@ async function getCoinData() {
   const res = await fetch(url);
   return await res.json();
 }
-
-const COINS = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
-  { id: 'monero', symbol: 'XMR', name: 'Monero' },
-  { id: 'solana', symbol: 'SOL', name: 'Solana' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
-];
 
 export default {
   name: 'investments',
@@ -27,7 +19,7 @@ export default {
       type: 3, // STRING
       description: 'Show only a specific coin (symbol or name)',
       required: false,
-      choices: COINS.map(c => ({ name: c.name, value: c.id }))
+  choices: COINS.map(c => ({ name: c.name, value: c.id }))
     }
   ],
   async execute(interaction) {
@@ -65,9 +57,10 @@ export default {
         const value = amount * coin.current_price;
         total += value;
         const upDown = coin.price_change_percentage_24h > 0 ? '📈' : '📉';
+        const decimals = COIN_DECIMALS[coin.id] ?? 6;
         investmentFields.push({
           name: `${coin.name} (${coin.symbol.toUpperCase()})`,
-          value: `Amount: ${amount.toFixed(6)}\nCurrent Value: $${value.toFixed(2)} USD ${upDown}\n1h: ${coin.price_change_percentage_1h_in_currency?.toFixed(2) ?? 'N/A'}% | 24h: ${coin.price_change_percentage_24h?.toFixed(2) ?? 'N/A'}% | 7d: ${coin.price_change_percentage_7d_in_currency?.toFixed(2) ?? 'N/A'}%`,
+          value: `Amount: ${amount.toFixed(decimals)}\nCurrent Value: $${value.toFixed(2)} USD ${upDown}\n1h: ${coin.price_change_percentage_1h_in_currency?.toFixed(2) ?? 'N/A'}% | 24h: ${coin.price_change_percentage_24h?.toFixed(2) ?? 'N/A'}% | 7d: ${coin.price_change_percentage_7d_in_currency?.toFixed(2) ?? 'N/A'}%`,
           inline: false
         });
       }

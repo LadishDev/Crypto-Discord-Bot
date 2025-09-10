@@ -2,13 +2,7 @@ import fetch from 'node-fetch';
 import balance from './balance.js';
 import fs from 'fs';
 import path from 'path';
-
-const COINS = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
-  { id: 'monero', symbol: 'XMR', name: 'Monero' },
-  { id: 'solana', symbol: 'SOL', name: 'Solana' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
-];
+import { COINS, COIN_DECIMALS } from '../coin_constants.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -28,7 +22,7 @@ export default {
       type: 3, // STRING
       description: 'The coin to invest in',
       required: true,
-      choices: COINS.map(c => ({ name: c.name, value: c.id }))
+  choices: COINS.map(c => ({ name: c.name, value: c.id }))
     },
     {
       name: 'amount',
@@ -54,12 +48,19 @@ export default {
 
     // If user specified coin_amount, calculate USD and ask for confirmation
     if (coinAmountInput && coinAmountInput > 0) {
+      const decimals = COIN_DECIMALS[coin.id] ?? 6;
+      // Validate decimal places
+      const coinAmountStr = coinAmountInput.toString();
+      const dp = coinAmountStr.includes('.') ? coinAmountStr.split('.')[1].length : 0;
+      if (dp > decimals) {
+        return interaction.reply({ content: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`, ephemeral: true });
+      }
       const usdCost = coinAmountInput * coin.current_price;
       // Always show conversion and ask for confirmation, check funds on confirm
       await interaction.reply({
         embeds: [{
           title: `Confirm Purchase`,
-          description: `Buy **${coinAmountInput} ${coin.symbol}** for **$${usdCost.toFixed(2)} USD**?`,
+            description: `Buy **${coinAmountInput.toFixed(decimals)} ${coin.symbol}** for **$${usdCost.toFixed(2)} USD**?`,
           color: 0x0099ff,
           footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
         }],
@@ -120,10 +121,17 @@ export default {
     // If user specified USD amount, calculate coin amount and ask for confirmation
     if (usdAmount && usdAmount > 0) {
       const coinAmount = usdAmount / coin.current_price;
+      const decimals = COIN_DECIMALS[coin.id] ?? 6;
+      // Validate decimal places
+      const coinAmountStr = coinAmount.toString();
+      const dp = coinAmountStr.includes('.') ? coinAmountStr.split('.')[1].length : 0;
+      if (dp > decimals) {
+        return interaction.reply({ content: `${coin.name} only supports up to ${decimals} decimal places for coin amount.`, ephemeral: true });
+      }
       await interaction.reply({
         embeds: [{
           title: `Confirm Purchase`,
-          description: `Buy **${coinAmount.toFixed(6)} ${coin.symbol}** for **$${usdAmount.toFixed(2)} USD**?`,
+          description: `Buy **${coinAmount.toFixed(decimals)} ${coin.symbol}** for **$${usdAmount.toFixed(2)} USD**?`,
           color: 0x0099ff,
           footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
         }],

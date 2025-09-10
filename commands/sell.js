@@ -2,13 +2,7 @@ import fetch from 'node-fetch';
 import balance from './balance.js';
 import fs from 'fs';
 import path from 'path';
-
-const COINS = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
-  { id: 'monero', symbol: 'XMR', name: 'Monero' },
-  { id: 'solana', symbol: 'SOL', name: 'Solana' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
-];
+import { COINS, COIN_DECIMALS } from '../coin_constants.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -26,7 +20,7 @@ export default {
       type: 3, // STRING
       description: 'The coin to sell',
       required: true,
-      choices: COINS.map(c => ({ name: c.name, value: c.id }))
+  choices: COINS.map(c => ({ name: c.name, value: c.id }))
     },
     {
       name: 'amount',
@@ -47,12 +41,19 @@ export default {
     if (!holdings[coinId] || holdings[coinId] < coinAmount) {
       return interaction.reply({ content: `You don't have enough ${coin.symbol} to sell.`, ephemeral: true });
     }
+    const decimals = COIN_DECIMALS[coin.id] ?? 6;
+    // Validate decimal places
+    const coinAmountStr = coinAmount.toString();
+    const dp = coinAmountStr.includes('.') ? coinAmountStr.split('.')[1].length : 0;
+    if (dp > decimals) {
+      return interaction.reply({ content: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`, ephemeral: true });
+    }
     const usdValue = coinAmount * coin.current_price;
     // Confirm sell
     await interaction.reply({
       embeds: [{
         title: `Confirm Sale`,
-        description: `Sell **${coinAmount} ${coin.symbol}** for **$${usdValue.toFixed(2)} USD**?`,
+        description: `Sell **${coinAmount.toFixed(decimals)} ${coin.symbol}** for **$${usdValue.toFixed(2)} USD**?`,
         color: 0xff5555,
         footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
       }],
