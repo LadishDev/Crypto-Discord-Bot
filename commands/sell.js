@@ -40,7 +40,7 @@ export default {
         description: 'Amount must be positive.',
         color: ERROR_COLOUR
       }],
-      ephemeral: true
+      flags: 64
     });
     const coins = await getCoinData();
     const coin = coins.find(c => c.id === coinId);
@@ -50,7 +50,7 @@ export default {
         description: 'Coin not found.',
         color: ERROR_COLOUR
       }],
-      ephemeral: true
+      flags: 64
     });
     const holdings = balance.getHoldings(userId);
     if (!holdings[coinId] || holdings[coinId] < coinAmount) {
@@ -60,7 +60,7 @@ export default {
           description: `You don't have enough ${COIN_SYMBOLS[coin.id]} to sell.`,
           color: ERROR_COLOUR
         }],
-        ephemeral: true
+        flags: 64
       });
     }
     const decimals = COIN_DECIMALS[coin.id] ?? 6;
@@ -74,18 +74,20 @@ export default {
           description: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`,
           color: ERROR_COLOUR
         }],
-        ephemeral: true
+        flags: 64
       });
     }
     const usdValue = coinAmount * coin.current_price;
       if (usdValue < 0.01) {
+        const decimals = COIN_DECIMALS[coin.id] ?? 6;
+        const minCoin = 0.01 / coin.current_price;
         return interaction.reply({
           embeds: [{
             title: 'Error',
-            description: `Transaction amount too small. Minimum sale is $0.01 USD.`,
+            description: `Transaction amount too small. Minimum sale is $0.01 USD.\n\n1 ${COIN_SYMBOLS[coin.id]} = $${coin.current_price} USD\n$0.01 USD = ${minCoin.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]}`,
             color: ERROR_COLOUR
           }],
-          ephemeral: true
+          flags: 64
         });
       }
     // Confirm sell

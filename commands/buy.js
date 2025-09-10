@@ -51,7 +51,7 @@ export default {
         description: 'Coin not found.',
         color: ERROR_COLOUR
       }],
-      ephemeral: true
+      flags: 64
     });
 
     // If user specified coin_amount, calculate USD and ask for confirmation
@@ -67,18 +67,20 @@ export default {
             description: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`,
             color: ERROR_COLOUR
           }],
-          ephemeral: true
+          flags: 64
         });
       }
       const usdCost = coinAmountInput * coin.current_price;
       if (usdCost < 0.01) {
+        const coinPerUsd = 1 / coin.current_price;
+        const minCoin = 0.01 / coin.current_price;
         return interaction.reply({
           embeds: [{
             title: 'Error',
-            description: `Transaction amount too small. Minimum purchase is $0.01 USD.`,
+            description: `Transaction amount too small. Minimum purchase is $0.01 USD.\n\n1 ${COIN_SYMBOLS[coin.id]} = $${coin.current_price} USD\n$0.01 USD = ${minCoin.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]}`,
             color: ERROR_COLOUR
           }],
-          ephemeral: true
+          flags: 64
         });
       }
       // Always show conversion and ask for confirmation, check funds on confirm
