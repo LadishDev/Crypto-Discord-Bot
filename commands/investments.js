@@ -1,6 +1,7 @@
 import balance from './balance.js';
 import fetch from 'node-fetch';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EMBED_COLOUR, ERROR_COLOUR } from '../utils.js';
 import { COINS, COIN_DECIMALS } from '../coin_constants.js';
 
 async function getCoinData() {
@@ -26,7 +27,13 @@ export default {
     const userId = interaction.user.id;
     const holdings = balance.getHoldings(userId);
     if (!Object.keys(holdings).length) {
-      await interaction.reply('Your investments are empty.');
+      await interaction.reply({
+        embeds: [{
+          title: 'No Investments',
+          description: 'Your investments are empty.',
+          color: EMBED_COLOUR
+        }]
+      });
       return;
     }
     const coins = await getCoinData();
@@ -42,7 +49,13 @@ export default {
         coin.name.toLowerCase() === coinQuery
       );
       if (filteredCoins.length === 0) {
-        await interaction.reply(`No investments in ${coinQuery.toUpperCase()}`);
+        await interaction.reply({
+          embeds: [{
+            title: 'No Investments',
+            description: `No investments in ${coinQuery.toUpperCase()}`,
+            color: ERROR_COLOUR
+          }]
+        });
         return;
       }
     }
@@ -67,7 +80,13 @@ export default {
     }
     if (coinQuery && !hasInvestment) {
       const coinName = filteredCoins[0]?.name || coinQuery.toUpperCase();
-      await interaction.reply(`No investments in ${coinName}`);
+      await interaction.reply({
+        embeds: [{
+          title: 'No Investments',
+          description: `No investments in ${coinName}`,
+          color: ERROR_COLOUR
+        }]
+      });
       return;
     }
 
@@ -76,7 +95,7 @@ export default {
     const pages = [];
     for (let i = 0; i < investmentFields.length; i += pageSize) {
       const embed = new EmbedBuilder()
-        .setColor(0x0099ff)
+        .setColor(EMBED_COLOUR)
         .setTitle(`${username}'s Investments`)
         .setDescription(`**Total Value: $${total.toFixed(2)} USD**`)
         .setTimestamp();
@@ -85,7 +104,13 @@ export default {
     }
 
     if (pages.length === 0) {
-      await interaction.reply('Your investments are empty.');
+      await interaction.reply({
+        embeds: [{
+          title: 'No Investments',
+          description: 'Your investments are empty.',
+          color: EMBED_COLOUR
+        }]
+      });
       return;
     }
 

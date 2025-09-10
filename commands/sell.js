@@ -3,6 +3,7 @@ import balance from './balance.js';
 import fs from 'fs';
 import path from 'path';
 import { COINS, COIN_DECIMALS } from '../coin_constants.js';
+import { EMBED_COLOUR, ERROR_COLOUR } from '../utils.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -33,20 +34,48 @@ export default {
     const userId = interaction.user.id;
     const coinId = interaction.options.getString('coin');
     const coinAmount = interaction.options.getNumber('amount');
-    if (coinAmount <= 0) return interaction.reply({ content: 'Amount must be positive.', ephemeral: true });
+    if (coinAmount <= 0) return interaction.reply({
+      embeds: [{
+        title: 'Error',
+        description: 'Amount must be positive.',
+        color: ERROR_COLOUR
+      }],
+      ephemeral: true
+    });
     const coins = await getCoinData();
     const coin = coins.find(c => c.id === coinId);
-    if (!coin) return interaction.reply({ content: 'Coin not found.', ephemeral: true });
+    if (!coin) return interaction.reply({
+      embeds: [{
+        title: 'Error',
+        description: 'Coin not found.',
+        color: ERROR_COLOUR
+      }],
+      ephemeral: true
+    });
     const holdings = balance.getHoldings(userId);
     if (!holdings[coinId] || holdings[coinId] < coinAmount) {
-      return interaction.reply({ content: `You don't have enough ${coin.symbol} to sell.`, ephemeral: true });
+      return interaction.reply({
+        embeds: [{
+          title: 'Error',
+          description: `You don't have enough ${coin.symbol} to sell.`,
+          color: ERROR_COLOUR
+        }],
+        ephemeral: true
+      });
     }
     const decimals = COIN_DECIMALS[coin.id] ?? 6;
     // Validate decimal places
     const coinAmountStr = coinAmount.toString();
     const dp = coinAmountStr.includes('.') ? coinAmountStr.split('.')[1].length : 0;
     if (dp > decimals) {
-      return interaction.reply({ content: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`, ephemeral: true });
+      return interaction.reply({
+        embeds: [{
+          title: 'Error',
+          description: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`,
+          color: ERROR_COLOUR
+        }],
+        ephemeral: true
+      });
     }
     const usdValue = coinAmount * coin.current_price;
     // Confirm sell
@@ -54,7 +83,7 @@ export default {
       embeds: [{
         title: `Confirm Sale`,
         description: `Sell **${coinAmount.toFixed(decimals)} ${coin.symbol}** for **$${usdValue.toFixed(2)} USD**?`,
-        color: 0xff5555,
+        color: EMBED_COLOUR,
         footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
       }],
       components: [{

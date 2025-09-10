@@ -3,6 +3,7 @@ import balance from './balance.js';
 import fs from 'fs';
 import path from 'path';
 import { COINS, COIN_DECIMALS } from '../coin_constants.js';
+import { EMBED_COLOUR, SUCCESS_COLOUR, ERROR_COLOUR } from '../utils.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -44,7 +45,14 @@ export default {
     const coinAmountInput = interaction.options.getNumber('coin_amount');
     const coins = await getCoinData();
     const coin = coins.find(c => c.id === coinId);
-    if (!coin) return interaction.reply({ content: 'Coin not found.', ephemeral: true });
+    if (!coin) return interaction.reply({
+      embeds: [{
+        title: 'Error',
+        description: 'Coin not found.',
+        color: ERROR_COLOUR
+      }],
+      ephemeral: true
+    });
 
     // If user specified coin_amount, calculate USD and ask for confirmation
     if (coinAmountInput && coinAmountInput > 0) {
@@ -53,15 +61,22 @@ export default {
       const coinAmountStr = coinAmountInput.toString();
       const dp = coinAmountStr.includes('.') ? coinAmountStr.split('.')[1].length : 0;
       if (dp > decimals) {
-        return interaction.reply({ content: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`, ephemeral: true });
+        return interaction.reply({
+          embeds: [{
+            title: 'Error',
+            description: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`,
+            color: ERROR_COLOUR
+          }],
+          ephemeral: true
+        });
       }
       const usdCost = coinAmountInput * coin.current_price;
       // Always show conversion and ask for confirmation, check funds on confirm
       await interaction.reply({
         embeds: [{
           title: `Confirm Purchase`,
-            description: `Buy **${coinAmountInput.toFixed(decimals)} ${coin.symbol}** for **$${usdCost.toFixed(2)} USD**?`,
-          color: 0x0099ff,
+          description: `Buy **${coinAmountInput.toFixed(decimals)} ${coin.symbol}** for **$${usdCost.toFixed(2)} USD**?`,
+          color: EMBED_COLOUR,
           footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
         }],
         components: [{
@@ -87,10 +102,31 @@ export default {
           const freshBalance = userInfoObj[userId]?.balance ?? 0;
           if (i.customId === 'buy_confirm') {
             if (freshBalance < usdCost) {
-              await i.update({ content: `You don't have enough funds.`, embeds: [], components: [], flags: 64 });
+              await i.update({
+                embeds: [{
+                  title: 'Error',
+                  description: `You don't have enough funds.`,
+                  color: ERROR_COLOUR
+                }],
+                components: [],
+                flags: 64
+              });
               return;
             }
-            balance.subtractBalance(userId, usdCost);
+            // Subtract balance first, only add holdings if successful
+            const balanceResult = balance.subtractBalance(userId, usdCost);
+            if (balanceResult === false) {
+              await i.update({
+                embeds: [{
+                  title: 'Error',
+                  description: `Failed to subtract balance. Please try again.`,
+                  color: ERROR_COLOUR
+                }],
+                components: [],
+                flags: 64
+              });
+              return;
+            }
             balance.addHoldings(userId, coinId, coinAmountInput);
             // Log transaction
             const TX_PATH = path.resolve('./transactions.json');
@@ -106,13 +142,37 @@ export default {
               timestamp: Date.now()
             });
             fs.writeFileSync(TX_PATH, JSON.stringify(txs, null, 2));
-            await i.update({ content: `Purchase successful!`, embeds: [], components: [], flags: 64 });
+            await i.update({
+              embeds: [{
+                title: 'Success',
+                description: 'Purchase successful!',
+                color: SUCCESS_COLOUR
+              }],
+              components: [],
+              flags: 64
+            });
             await i.followUp({ content: `${i.user} bought ${coinAmountInput} ${coin.symbol} for $${usdCost.toFixed(2)} USD!`, flags: 0 });
           } else {
-            await i.update({ content: 'Purchase cancelled.', embeds: [], components: [], flags: 64 });
+            await i.update({
+              embeds: [{
+                title: 'Cancelled',
+                description: 'Purchase cancelled.',
+                color: ERROR_COLOUR
+              }],
+              components: [],
+              flags: 64
+            });
           }
         } catch (e) {
-          await i.update({ content: 'Error checking funds. Please try again.', embeds: [], components: [], flags: 64 });
+          await i.update({
+            embeds: [{
+              title: 'Error',
+              description: `Error checking funds. Please try again`,
+              color: ERROR_COLOUR
+            }],
+            components: [],
+            flags: 64
+          });
         }
       });
       return;
@@ -126,13 +186,20 @@ export default {
       const coinAmountStr = coinAmount.toString();
       const dp = coinAmountStr.includes('.') ? coinAmountStr.split('.')[1].length : 0;
       if (dp > decimals) {
-        return interaction.reply({ content: `${coin.name} only supports up to ${decimals} decimal places for coin amount.`, ephemeral: true });
+        return interaction.reply({
+          embeds: [{
+            title: 'Error',
+            description: `${coin.name} only supports up to ${decimals} decimal places for coin amount.`,
+            color: ERROR_COLOUR
+          }],
+          ephemeral: true
+        });
       }
       await interaction.reply({
         embeds: [{
           title: `Confirm Purchase`,
           description: `Buy **${coinAmount.toFixed(decimals)} ${coin.symbol}** for **$${usdAmount.toFixed(2)} USD**?`,
-          color: 0x0099ff,
+          color: WARNING_COLOUR,
           footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
         }],
         components: [{
@@ -158,7 +225,15 @@ export default {
           const freshBalance = userInfoObj[userId]?.balance ?? 0;
           if (i.customId === 'buy_confirm_usd') {
             if (freshBalance < usdAmount) {
-              await i.update({ content: `You don't have enough funds.`, embeds: [], components: [], flags: 64 });
+              await i.update({
+                embeds: [{
+                  title: 'Error',
+                  description: `You don't have enough funds.`,
+                  color: ERROR_COLOUR
+                }],
+                components: [],
+                flags: 64
+              });
               return;
             }
             balance.subtractBalance(userId, usdAmount);
@@ -177,20 +252,51 @@ export default {
               timestamp: Date.now()
             });
             fs.writeFileSync(TX_PATH, JSON.stringify(txs, null, 2));
-            await i.update({ content: `Purchase successful!`, embeds: [], components: [], flags: 64 });
+            await i.update({
+              embeds: [{
+                title: 'Success',
+                description: 'Purchase successful!',
+                color: SUCCESS_COLOUR
+              }],
+              components: [],
+              flags: 64
+            });
             await i.followUp({ content: `${i.user} bought ${coinAmount.toFixed(6)} ${coin.symbol} for $${usdAmount.toFixed(2)} USD!`, flags: 0 });
           } else {
-            await i.update({ content: 'Purchase cancelled.', embeds: [], components: [], flags: 64 });
+            await i.update({
+              embeds: [{
+                title: 'Cancelled',
+                description: 'Purchase cancelled.',
+                color: SUCCESS_COLOUR
+              }],
+              components: [],
+              flags: 64
+            });
           }
         } catch (e) {
-          await i.update({ content: 'Error checking funds. Please try again.', embeds: [], components: [], flags: 64 });
+          await i.update({
+            embeds: [{
+              title: 'Error',
+              description: 'Error checking funds. Please try again.',
+              color: ERROR_COLOUR
+            }],
+            components: [],
+            flags: 64
+          });
         }
       });
       return;
     }
 
     // If neither amount is valid
-    return interaction.reply({ content: 'Amount must be positive.', ephemeral: true });
+    return interaction.reply({
+      embeds: [{
+        title: 'Error',
+        description: 'Amount must be positive.',
+        color: ERROR_COLOUR
+      }],
+      ephemeral: true
+    });
   },
   // Helper for inventory (now proxied to balance.js)
   getHoldings(userId) {
