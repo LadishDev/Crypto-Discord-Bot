@@ -7,18 +7,12 @@ export default {
   name: 'invite',
   description: 'Get an invite link to add the bot to your server',
   async execute(interaction) {
-    const embed = new EmbedBuilder()
-      .setTitle('Invite Me to Your Server!')
-      .setDescription('Click the button below to add this bot to your server.')
-      .setColor(0x5865F2);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel('Invite Bot')
-        .setStyle(ButtonStyle.Link)
-        .setURL(INVITE_URL)
-    );
-
-    await interaction.reply({ embeds: [embed], components: [row] });
+    // Use utility helpers for embed and button
+    const { createInfoEmbed, replyWithEmbed, createButton, createButtonRow } = await import('../utils.js');
+    const embed = createInfoEmbed('Invite Me to Your Server!', 'Click the button below to add this bot to your server.', 0x5865F2);
+    const row = createButtonRow([
+      createButton('Invite Bot', null, 5, false, INVITE_URL)
+    ]);
+    await replyWithEmbed(interaction, embed, false, [row]);
   },
 };

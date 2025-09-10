@@ -1,9 +1,13 @@
+
 import fetch from 'node-fetch';
 import balance from './balance.js';
-import fs from 'fs';
 import path from 'path';
 import { COINS, COIN_DECIMALS, COIN_SYMBOLS } from '../coin_constants.js';
-import { EMBED_COLOUR, ERROR_COLOUR, SELL_COLOUR, SUCCESS_COLOUR } from '../utils.js';
+import {
+  EMBED_COLOUR, ERROR_COLOUR, SELL_COLOUR, SUCCESS_COLOUR,
+  createErrorEmbed, createSuccessEmbed, createInfoEmbed, replyWithEmbed,
+  formatUSD, formatCoinAmount, readJson, writeJson, createButton, createButtonRow
+} from '../utils.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -34,79 +38,46 @@ export default {
     const userId = interaction.user.id;
     const coinId = interaction.options.getString('coin');
     const coinAmount = interaction.options.getNumber('amount');
-    if (coinAmount <= 0) return interaction.reply({
-      embeds: [{
-        title: 'Error',
-        description: 'Amount must be positive.',
-        color: ERROR_COLOUR
-      }],
-      flags: 64
-    });
+  if (coinAmount <= 0) return await replyWithEmbed(interaction, createErrorEmbed('Amount must be positive.'), true);
     const coins = await getCoinData();
     const coin = coins.find(c => c.id === coinId);
-    if (!coin) return interaction.reply({
-      embeds: [{
-        title: 'Error',
-        description: 'Coin not found.',
-        color: ERROR_COLOUR
-      }],
-      flags: 64
-    });
+  if (!coin) return await replyWithEmbed(interaction, createErrorEmbed('Coin not found.'), true);
     const holdings = balance.getHoldings(userId);
     if (!holdings[coinId] || holdings[coinId] < coinAmount) {
-      return interaction.reply({
-        embeds: [{
-          title: 'Error',
-          description: `You don't have enough ${COIN_SYMBOLS[coin.id]} to sell.`,
-          color: ERROR_COLOUR
-        }],
-        flags: 64
-      });
+      return await replyWithEmbed(interaction, createErrorEmbed(`You don't have enough ${COIN_SYMBOLS[coin.id]} to sell.`), true);
     }
     const decimals = COIN_DECIMALS[coin.id] ?? 6;
     // Validate decimal places
     const coinAmountStr = coinAmount.toString();
     const dp = coinAmountStr.includes('.') ? coinAmountStr.split('.')[1].length : 0;
     if (dp > decimals) {
-      return interaction.reply({
-        embeds: [{
-          title: 'Error',
-          description: `${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`,
-          color: ERROR_COLOUR
-        }],
-        flags: 64
-      });
+      return await replyWithEmbed(interaction, createErrorEmbed(`${coin.name} only supports up to ${decimals} decimal places. You entered ${dp}.`), true);
     }
     const usdValue = coinAmount * coin.current_price;
-      if (usdValue < 0.01) {
-        const decimals = COIN_DECIMALS[coin.id] ?? 6;
-        const minCoin = 0.01 / coin.current_price;
-        return interaction.reply({
-          embeds: [{
-            title: 'Error',
-            description: `Transaction amount too small. Minimum sale is $0.01 USD.\n\n1 ${COIN_SYMBOLS[coin.id]} = $${coin.current_price} USD\n$0.01 USD = ${minCoin.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]}`,
-            color: ERROR_COLOUR
-          }],
-          flags: 64
-        });
-      }
+    if (usdValue < 0.01) {
+      const minCoin = 0.01 / coin.current_price;
+      return await replyWithEmbed(
+        interaction,
+        createErrorEmbed(
+          `Transaction amount too small. Minimum sale is $0.01 USD.\n\n1 ${COIN_SYMBOLS[coin.id]} = $${coin.current_price} USD\n$0.01 USD = ${formatCoinAmount(minCoin, decimals)} ${COIN_SYMBOLS[coin.id]}`
+        ),
+        true
+      );
+    }
     // Confirm sell
-    await interaction.reply({
-      embeds: [{
-        title: `Confirm Sale`,
-  description: `Sell **${coinAmount.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]}** for **$${usdValue.toFixed(2)} USD**?`,
-        color: EMBED_COLOUR,
-  footer: { text: `Current price: $${coin.current_price} per ${COIN_SYMBOLS[coin.id]}` }
-      }],
-      components: [{
-        type: 1,
-        components: [
-          { type: 2, style: 3, label: 'Confirm', custom_id: 'sell_confirm' },
-          { type: 2, style: 4, label: 'Cancel', custom_id: 'sell_cancel' }
-        ]
-      }],
-      flags: 64 // ephemeral
-    });
+    await replyWithEmbed(
+      interaction,
+      createInfoEmbed(
+        'Confirm Sale',
+        `Sell **${formatCoinAmount(coinAmount, decimals)} ${COIN_SYMBOLS[coin.id]}** for **${formatUSD(usdValue)}**?\n\nCurrent price: ${formatUSD(coin.current_price)} per ${COIN_SYMBOLS[coin.id]}`,
+        EMBED_COLOUR
+      ),
+      true,
+      [createButtonRow([
+        createButton('Confirm', 'sell_confirm', 3),
+        createButton('Cancel', 'sell_cancel', 4)
+      ])]
+    );
     // Wait for button interaction
     const filter = i => i.user.id === userId && (i.customId === 'sell_confirm' || i.customId === 'sell_cancel');
     const collector = interaction.channel.createMessageComponentCollector({ filter, time: 30000, max: 1 });
@@ -117,8 +88,8 @@ export default {
         balance.addHoldings(userId, coinId, -coinAmount);
         // Log transaction
         const TX_PATH = path.resolve('./transactions.json');
-        let txs = [];
-        if (fs.existsSync(TX_PATH)) txs = JSON.parse(fs.readFileSync(TX_PATH, 'utf8'));
+        let txs = readJson(TX_PATH);
+        if (!Array.isArray(txs)) txs = [];
         txs.push({
           userId,
           type: 'sell',
@@ -128,31 +99,19 @@ export default {
           usd: usdValue,
           timestamp: Date.now()
         });
-        fs.writeFileSync(TX_PATH, JSON.stringify(txs, null, 2));
+        writeJson(TX_PATH, txs);
         await i.update({
-          embeds: [{
-            title: 'Success',
-            description: 'Sale successful!',
-            color: SUCCESS_COLOUR
-          }],
+          embeds: [createSuccessEmbed('Sale successful!')],
           components: [],
           flags: 64
         });
         await i.followUp({
-          embeds: [{
-            title: 'Sale',
-            description: `${i.user} sold ${coinAmount} ${COIN_SYMBOLS[coin.id]} for $${usdValue.toFixed(2)} USD!`,
-            color: SELL_COLOUR
-          }],
+          embeds: [createInfoEmbed('Sale', `${i.user} sold ${formatCoinAmount(coinAmount, decimals)} ${COIN_SYMBOLS[coin.id]} for ${formatUSD(usdValue)}!`, SELL_COLOUR)],
           flags: 0
         });
       } else {
         await i.update({
-          embeds: [{
-            title: 'Cancelled',
-            description: 'Sale cancelled.',
-            color: ERROR_COLOUR
-          }],
+          embeds: [createErrorEmbed('Sale cancelled.')],
           components: [],
           flags: 64
         });

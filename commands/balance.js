@@ -1,6 +1,8 @@
 
+
 import fs from 'fs';
 import path from 'path';
+import { formatUSD, createInfoEmbed, replyWithEmbed } from '../utils.js';
 const USER_INFO_PATH = path.resolve('./user_info.json');
 let userInfoObj = {};
 try {
@@ -23,7 +25,12 @@ export default {
       userInfoObj[userId] = { balance: 1000, holdings: {} };
       saveUserInfo();
     }
-    await interaction.reply(`Your balance: $${Number(userInfoObj[userId].balance).toFixed(2)} USD`);
+    const bal = Number(userInfoObj[userId].balance);
+    await replyWithEmbed(
+      interaction,
+      createInfoEmbed('Your Balance', `${formatUSD(bal)}`),
+      false
+    );
   },
   // Helper for other commands
   getBalance(userId) {

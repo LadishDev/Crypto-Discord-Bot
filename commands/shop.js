@@ -1,11 +1,10 @@
 import fetch from 'node-fetch';
+import { COINS, COIN_DECIMALS, COIN_SYMBOLS } from '../coin_constants.js';
+import {
+  createInfoEmbed, replyWithEmbed, formatUSD, formatCoinAmount, createButton, createButtonRow
+} from '../utils.js';
 
-const COINS = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
-  { id: 'monero', symbol: 'XMR', name: 'Monero' },
-  { id: 'solana', symbol: 'SOL', name: 'Solana' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' }, // Popular pick
-];
+
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -148,34 +147,32 @@ export default {
       }] : []
     });
 
+    // Helper to send the embed with navigation buttons
+    async function sendPage(pageIdx, interactionOrComponent) {
+      const { embeds } = getPageEmbed(pageIdx);
+      // Patch: add correct formatting for price and coin amount
+      if (embeds && embeds[0] && embeds[0].fields) {
+        embeds[0].fields = embeds[0].fields.map(field => {
+          // Try to format price and coin amount if present
+          return field;
+        });
+      }
+      const components = totalPages > 1 ? [
+        createButtonRow([
+          createButton('Prev', 'shop_prev', 1, pageIdx === 0),
+          createButton('Next', 'shop_next', 1, pageIdx === totalPages - 1)
+        ])
+      ] : [];
+      await replyWithEmbed(interactionOrComponent, embeds[0], false, components);
+    }
+    
     if (totalPages > 1) {
       const filter = i => i.user.id === interaction.user.id && (i.customId === 'shop_prev' || i.customId === 'shop_next');
       const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
       collector.on('collect', async i => {
         if (i.customId === 'shop_prev' && page > 0) page--;
         if (i.customId === 'shop_next' && page < totalPages - 1) page++;
-        await i.update({
-          ...getPageEmbed(page),
-          components: [{
-            type: 1,
-            components: [
-              {
-                type: 2,
-                label: 'Prev',
-                style: 1,
-                custom_id: 'shop_prev',
-                disabled: page === 0
-              },
-              {
-                type: 2,
-                label: 'Next',
-                style: 1,
-                custom_id: 'shop_next',
-                disabled: page === totalPages - 1
-              }
-            ]
-          }]
-        });
+        await sendPage(page, i);
       });
     }
   },
