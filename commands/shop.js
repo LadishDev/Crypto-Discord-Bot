@@ -44,7 +44,7 @@ export default {
         c.name.toLowerCase().includes(s)
       );
       if (coins.length === 0) {
-        await interaction.reply({ content: `No coins found for "${query}".`, ephemeral: true });
+  await interaction.reply({ content: `No coins found for "${query}".`, flags: 64 });
         return;
       }
     }
