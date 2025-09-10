@@ -2,7 +2,7 @@ import balance from './balance.js';
 import fetch from 'node-fetch';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { EMBED_COLOUR, ERROR_COLOUR } from '../utils.js';
-import { COINS, COIN_DECIMALS } from '../coin_constants.js';
+import { COINS, COIN_DECIMALS, COIN_SYMBOLS } from '../coin_constants.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -72,7 +72,7 @@ export default {
         const upDown = coin.price_change_percentage_24h > 0 ? '📈' : '📉';
         const decimals = COIN_DECIMALS[coin.id] ?? 6;
         investmentFields.push({
-          name: `${coin.name} (${coin.symbol.toUpperCase()})`,
+          name: `${coin.name} (${COIN_SYMBOLS[coin.id]})`,
           value: `Amount: ${amount.toFixed(decimals)}\nCurrent Value: $${value.toFixed(2)} USD ${upDown}\n1h: ${coin.price_change_percentage_1h_in_currency?.toFixed(2) ?? 'N/A'}% | 24h: ${coin.price_change_percentage_24h?.toFixed(2) ?? 'N/A'}% | 7d: ${coin.price_change_percentage_7d_in_currency?.toFixed(2) ?? 'N/A'}%`,
           inline: false
         });

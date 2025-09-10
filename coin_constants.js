@@ -7,3 +7,4 @@ export const COINS = [
 ];
 
 export const COIN_DECIMALS = Object.fromEntries(COINS.map(c => [c.id, c.decimals]));
+export const COIN_SYMBOLS = Object.fromEntries(COINS.map(c => [c.id, c.symbol]));

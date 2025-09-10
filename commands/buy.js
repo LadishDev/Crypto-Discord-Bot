@@ -2,8 +2,8 @@ import fetch from 'node-fetch';
 import balance from './balance.js';
 import fs from 'fs';
 import path from 'path';
-import { COINS, COIN_DECIMALS } from '../coin_constants.js';
-import { EMBED_COLOUR, SUCCESS_COLOUR, ERROR_COLOUR } from '../utils.js';
+import { COINS, COIN_DECIMALS, COIN_SYMBOLS } from '../coin_constants.js';
+import { EMBED_COLOUR, SUCCESS_COLOUR, ERROR_COLOUR, BUY_COLOUR } from '../utils.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -75,9 +75,9 @@ export default {
       await interaction.reply({
         embeds: [{
           title: `Confirm Purchase`,
-          description: `Buy **${coinAmountInput.toFixed(decimals)} ${coin.symbol}** for **$${usdCost.toFixed(2)} USD**?`,
+          description: `Buy **${coinAmountInput.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]}** for **$${usdCost.toFixed(2)} USD**?`,
           color: EMBED_COLOUR,
-          footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
+          footer: { text: `Current price: $${coin.current_price} per ${COIN_SYMBOLS[coin.id]}` }
         }],
         components: [{
           type: 1,
@@ -151,7 +151,14 @@ export default {
               components: [],
               flags: 64
             });
-            await i.followUp({ content: `${i.user} bought ${coinAmountInput} ${coin.symbol} for $${usdCost.toFixed(2)} USD!`, flags: 0 });
+            await i.followUp({
+              embeds: [{
+                title: 'Purchase',
+                description: `${i.user} bought ${coinAmountInput.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]} for $${usdCost.toFixed(2)} USD!`,
+                color: BUY_COLOUR
+              }],
+              flags: 0
+            });
           } else {
             await i.update({
               embeds: [{
@@ -198,9 +205,9 @@ export default {
       await interaction.reply({
         embeds: [{
           title: `Confirm Purchase`,
-          description: `Buy **${coinAmount.toFixed(decimals)} ${coin.symbol}** for **$${usdAmount.toFixed(2)} USD**?`,
+          description: `Buy **${coinAmount.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]}** for **$${usdAmount.toFixed(2)} USD**?`,
           color: WARNING_COLOUR,
-          footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
+          footer: { text: `Current price: $${coin.current_price} per ${COIN_SYMBOLS[coin.id]}` }
         }],
         components: [{
           type: 1,
@@ -261,7 +268,14 @@ export default {
               components: [],
               flags: 64
             });
-            await i.followUp({ content: `${i.user} bought ${coinAmount.toFixed(6)} ${coin.symbol} for $${usdAmount.toFixed(2)} USD!`, flags: 0 });
+            await i.followUp({
+              embeds: [{
+                title: 'Purchase',
+                description: `${i.user} bought ${coinAmount.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]} for $${usdAmount.toFixed(2)} USD!`,
+                color: BUY_COLOUR
+              }],
+              flags: 0
+            });
           } else {
             await i.update({
               embeds: [{

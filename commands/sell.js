@@ -2,8 +2,8 @@ import fetch from 'node-fetch';
 import balance from './balance.js';
 import fs from 'fs';
 import path from 'path';
-import { COINS, COIN_DECIMALS } from '../coin_constants.js';
-import { EMBED_COLOUR, ERROR_COLOUR } from '../utils.js';
+import { COINS, COIN_DECIMALS, COIN_SYMBOLS } from '../coin_constants.js';
+import { EMBED_COLOUR, ERROR_COLOUR, SELL_COLOUR, SUCCESS_COLOUR } from '../utils.js';
 
 async function getCoinData() {
   const ids = COINS.map(c => c.id).join(',');
@@ -57,7 +57,7 @@ export default {
       return interaction.reply({
         embeds: [{
           title: 'Error',
-          description: `You don't have enough ${coin.symbol} to sell.`,
+          description: `You don't have enough ${COIN_SYMBOLS[coin.id]} to sell.`,
           color: ERROR_COLOUR
         }],
         ephemeral: true
@@ -82,9 +82,9 @@ export default {
     await interaction.reply({
       embeds: [{
         title: `Confirm Sale`,
-        description: `Sell **${coinAmount.toFixed(decimals)} ${coin.symbol}** for **$${usdValue.toFixed(2)} USD**?`,
+  description: `Sell **${coinAmount.toFixed(decimals)} ${COIN_SYMBOLS[coin.id]}** for **$${usdValue.toFixed(2)} USD**?`,
         color: EMBED_COLOUR,
-        footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
+  footer: { text: `Current price: $${coin.current_price} per ${COIN_SYMBOLS[coin.id]}` }
       }],
       components: [{
         type: 1,
@@ -117,10 +117,33 @@ export default {
           timestamp: Date.now()
         });
         fs.writeFileSync(TX_PATH, JSON.stringify(txs, null, 2));
-        await i.update({ content: `Sale successful!`, embeds: [], components: [], flags: 64 });
-        await i.followUp({ content: `${i.user} sold ${coinAmount} ${coin.symbol} for $${usdValue.toFixed(2)} USD!`, flags: 0 });
+        await i.update({
+          embeds: [{
+            title: 'Success',
+            description: 'Sale successful!',
+            color: SUCCESS_COLOUR
+          }],
+          components: [],
+          flags: 64
+        });
+        await i.followUp({
+          embeds: [{
+            title: 'Sale',
+            description: `${i.user} sold ${coinAmount} ${COIN_SYMBOLS[coin.id]} for $${usdValue.toFixed(2)} USD!`,
+            color: SELL_COLOUR
+          }],
+          flags: 0
+        });
       } else {
-        await i.update({ content: 'Sale cancelled.', embeds: [], components: [], flags: 64 });
+        await i.update({
+          embeds: [{
+            title: 'Cancelled',
+            description: 'Sale cancelled.',
+            color: ERROR_COLOUR
+          }],
+          components: [],
+          flags: 64
+        });
       }
     });
   }
