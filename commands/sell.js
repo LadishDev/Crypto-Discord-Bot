@@ -1,0 +1,97 @@
+import fetch from 'node-fetch';
+import balance from './balance.js';
+import fs from 'fs';
+import path from 'path';
+
+const COINS = [
+  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
+  { id: 'monero', symbol: 'XMR', name: 'Monero' },
+  { id: 'solana', symbol: 'SOL', name: 'Solana' },
+  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
+];
+
+async function getCoinData() {
+  const ids = COINS.map(c => c.id).join(',');
+  const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}`;
+  const res = await fetch(url);
+  return await res.json();
+}
+
+export default {
+  name: 'sell',
+  description: 'Sell a crypto coin for USD',
+  options: [
+    {
+      name: 'coin',
+      type: 3, // STRING
+      description: 'The coin to sell',
+      required: true,
+      choices: COINS.map(c => ({ name: c.name, value: c.id }))
+    },
+    {
+      name: 'amount',
+      type: 10, // NUMBER
+      description: 'Amount of coin to sell (e.g. 0.01)',
+      required: true
+    }
+  ],
+  async execute(interaction) {
+    const userId = interaction.user.id;
+    const coinId = interaction.options.getString('coin');
+    const coinAmount = interaction.options.getNumber('amount');
+    if (coinAmount <= 0) return interaction.reply({ content: 'Amount must be positive.', ephemeral: true });
+    const coins = await getCoinData();
+    const coin = coins.find(c => c.id === coinId);
+    if (!coin) return interaction.reply({ content: 'Coin not found.', ephemeral: true });
+    const holdings = balance.getHoldings(userId);
+    if (!holdings[coinId] || holdings[coinId] < coinAmount) {
+      return interaction.reply({ content: `You don't have enough ${coin.symbol} to sell.`, ephemeral: true });
+    }
+    const usdValue = coinAmount * coin.current_price;
+    // Confirm sell
+    await interaction.reply({
+      embeds: [{
+        title: `Confirm Sale`,
+        description: `Sell **${coinAmount} ${coin.symbol}** for **$${usdValue.toFixed(2)} USD**?`,
+        color: 0xff5555,
+        footer: { text: `Current price: $${coin.current_price} per ${coin.symbol}` }
+      }],
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 3, label: 'Confirm', custom_id: 'sell_confirm' },
+          { type: 2, style: 4, label: 'Cancel', custom_id: 'sell_cancel' }
+        ]
+      }],
+      flags: 64 // ephemeral
+    });
+    // Wait for button interaction
+    const filter = i => i.user.id === userId && (i.customId === 'sell_confirm' || i.customId === 'sell_cancel');
+    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 30000, max: 1 });
+    collector.on('collect', async i => {
+      if (i.customId === 'sell_confirm') {
+        // Update holdings and balance
+        balance.addBalance(userId, usdValue);
+        balance.addHoldings(userId, coinId, -coinAmount);
+        // Log transaction
+        const TX_PATH = path.resolve('./transactions.json');
+        let txs = [];
+        if (fs.existsSync(TX_PATH)) txs = JSON.parse(fs.readFileSync(TX_PATH, 'utf8'));
+        txs.push({
+          userId,
+          type: 'sell',
+          coin: coinId,
+          amount: coinAmount,
+          price: coin.current_price,
+          usd: usdValue,
+          timestamp: Date.now()
+        });
+        fs.writeFileSync(TX_PATH, JSON.stringify(txs, null, 2));
+        await i.update({ content: `Sale successful!`, embeds: [], components: [], flags: 64 });
+        await i.followUp({ content: `${i.user} sold ${coinAmount} ${coin.symbol} for $${usdValue.toFixed(2)} USD!`, flags: 0 });
+      } else {
+        await i.update({ content: 'Sale cancelled.', embeds: [], components: [], flags: 64 });
+      }
+    });
+  }
+};
