@@ -80,12 +80,17 @@ export function createButtonRow(buttons) {
 	};
 }
 
-export function createButton(label, custom_id, style = 1, disabled = false) {
-	return {
+export function createButton(label, custom_id, style = 1, disabled = false, url = undefined) {
+	const btn = {
 		type: 2,
 		label,
-		custom_id,
 		style,
 		disabled
 	};
+	if (style === 5 && url) {
+		btn.url = url;
+	} else {
+		btn.custom_id = custom_id;
+	}
+	return btn;
 }
