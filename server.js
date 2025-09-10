@@ -4,7 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'url';
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
 
 // Dynamically load events
 const eventsPath = path.resolve('./events');
