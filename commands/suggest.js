@@ -41,7 +41,7 @@ export default {
         {
             name: 'suggestion',
             type: 3, // STRING
-            description: 'Your suggestion',
+            description: 'Your suggestion (Min 10 characters, Max 500 characters)',
             required: true
         }
     ],
