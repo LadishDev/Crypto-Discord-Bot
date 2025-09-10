@@ -78,6 +78,16 @@ export default {
       });
     }
     const usdValue = coinAmount * coin.current_price;
+      if (usdValue < 0.01) {
+        return interaction.reply({
+          embeds: [{
+            title: 'Error',
+            description: `Transaction amount too small. Minimum sale is $0.01 USD.`,
+            color: ERROR_COLOUR
+          }],
+          ephemeral: true
+        });
+      }
     // Confirm sell
     await interaction.reply({
       embeds: [{

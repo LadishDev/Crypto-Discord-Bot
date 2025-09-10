@@ -71,6 +71,16 @@ export default {
         });
       }
       const usdCost = coinAmountInput * coin.current_price;
+      if (usdCost < 0.01) {
+        return interaction.reply({
+          embeds: [{
+            title: 'Error',
+            description: `Transaction amount too small. Minimum purchase is $0.01 USD.`,
+            color: ERROR_COLOUR
+          }],
+          ephemeral: true
+        });
+      }
       // Always show conversion and ask for confirmation, check funds on confirm
       await interaction.reply({
         embeds: [{
