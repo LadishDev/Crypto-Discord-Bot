@@ -11,7 +11,7 @@ export default {
     const { createInfoEmbed, replyWithEmbed, createButton, createButtonRow } = await import('../utils.js');
     const embed = createInfoEmbed('Invite Me to Your Server!', 'Click the button below to add this bot to your server.', 0x5865F2);
     const row = createButtonRow([
-      createButton('Invite Bot', null, 5, false, INVITE_URL)
+      createButton('Invite Bot', undefined, 5, false, INVITE_URL)
     ]);
     await replyWithEmbed(interaction, embed, false, [row]);
   },
